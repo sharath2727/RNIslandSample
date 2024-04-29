@@ -110,19 +110,16 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
   // Start the react-native instance, which will create a JavaScript runtime and load the applications bundle
   host.ReloadInstance();
 
-  // Create a RootView which will present a react-native component
-  winrt::Microsoft::ReactNative::ReactViewOptions viewOptions;
-  viewOptions.ComponentName(mainComponentName);
-  auto rootView = winrt::Microsoft::ReactNative::CompositionRootView(compositor);
-  rootView.ReactViewHost(winrt::Microsoft::ReactNative::ReactCoreInjection::MakeViewHost(host, viewOptions));
+  auto reactNativeIsland =
+      winrt::Microsoft::ReactNative::ReactNativeIsland::Create(compositor, window, host, mainComponentName);
 
   // Update the size of the RootView when the AppWindow changes size
-  window.Changed([wkRootView = winrt::make_weak(rootView)](
+  window.Changed([wkreactNativeIsland = winrt::make_weak(reactNativeIsland)](
                      winrt::Microsoft::UI::Windowing::AppWindow const &window,
                      winrt::Microsoft::UI::Windowing::AppWindowChangedEventArgs const &args) {
     if (args.DidSizeChange() || args.DidVisibilityChange()) {
-      if (auto rootView = wkRootView.get()) {
-        UpdateRootViewSizeToAppWindow(rootView, window);
+      if (auto reactNativeIsland = wkreactNativeIsland.get()) {
+          reactNativeIsland.UpdateRootViewSizeToAppWindow(window);
       }
     }
   });
@@ -141,15 +138,8 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
 
   // DesktopChildSiteBridge create a ContentSite that can host the RootView ContentIsland
   auto bridge = winrt::Microsoft::UI::Content::DesktopChildSiteBridge::Create(compositor, window.Id());
-  bridge.Connect(rootView.Island());
+  bridge.Connect(reactNativeIsland.Island());
   bridge.ResizePolicy(winrt::Microsoft::UI::Content::ContentSizePolicy::ResizeContentToParentWindow);
-
-  auto invScale = 1.0f / scaleFactor;
-  rootView.RootVisual().Scale({invScale, invScale, invScale});
-  rootView.ScaleFactor(scaleFactor);
-
-  // Set the intialSize of the root view
-  UpdateRootViewSizeToAppWindow(rootView, window);
 
   bridge.Show();
 
